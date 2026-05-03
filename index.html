@@ -175,23 +175,8 @@ openssl pkeyutl -verify -pubin -inkey pubkey.pem \
   <script>
     'use strict';
 
-    // ─────────────────────────────────────────────────────────────
-    // CLÉ PUBLIQUE Ed25519 DU SERVEUR GRAAL SECURITY
-    // ─────────────────────────────────────────────────────────────
-    // Format : 32 octets bruts encodés en base64url (43 caractères).
-    // Cette clé est la moitié publique de la paire générée sur le
-    // serveur Graal. La clé privée ne quitte jamais le serveur.
-    //
-    // ⚠ POUR DÉPLOYER : remplacer la valeur ci-dessous par la sortie
-    //   du script `node scripts/export-pubkey.js` exécuté sur le serveur.
-    //
-    const GRAAL_PUBKEY_B64URL = '__REMPLACER_AVEC_VOTRE_CLE_PUBLIQUE__';
+    const GRAAL_PUBKEY_B64URL = 'drvEmgpSydcGaYmY-sfER_FDMc0ak1hV3nUQmMngUMc';
 
-    // ─────────────────────────────────────────────────────────────
-    // UTILITAIRES
-    // ─────────────────────────────────────────────────────────────
-
-    /** base64url → Uint8Array */
     function b64urlToBytes(b64url) {
       const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
       const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
@@ -201,7 +186,6 @@ openssl pkeyutl -verify -pubin -inkey pubkey.pem \
       return bytes;
     }
 
-    /** base64 standard → Uint8Array */
     function b64ToBytes(b64) {
       const clean = b64.replace(/\s/g, '');
       const bin = atob(clean);
@@ -210,34 +194,25 @@ openssl pkeyutl -verify -pubin -inkey pubkey.pem \
       return bytes;
     }
 
-    /** Uint8Array → string hex */
     function bytesToHex(bytes) {
       return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    /** Calcule SHA-256(input) → string hex (24 chars pour fingerprint) */
     async function shortFingerprint(bytes) {
       const hash = await crypto.subtle.digest('SHA-256', bytes);
       return 'SHA256:' + bytesToHex(new Uint8Array(hash)).slice(0, 24);
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // INITIALISATION
-    // ─────────────────────────────────────────────────────────────
-
-    let publicKeyHandle = null; // CryptoKey une fois importée
+    let publicKeyHandle = null;
 
     (async function init() {
-      // Affiche la clé publique
       document.getElementById('pubkey-display').textContent = GRAAL_PUBKEY_B64URL;
 
-      // Calcule + affiche le fingerprint
       try {
         const pubBytes = b64urlToBytes(GRAAL_PUBKEY_B64URL);
         const fp = await shortFingerprint(pubBytes);
         document.getElementById('pubkey-fingerprint').textContent = fp;
 
-        // Importe la clé publique pour WebCrypto
         publicKeyHandle = await crypto.subtle.importKey(
           'raw',
           pubBytes,
