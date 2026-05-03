@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vérification de signature — Graal Security</title>
+  <meta name="description" content="Vérifiez l'authenticité d'un livrable Graal Security. Vérification 100% locale dans votre navigateur, aucune donnée n'est envoyée." />
+  <style>
+    :root {
+      --bg: #0d0d1a;
+      --panel: #1a1a2e;
+      --border: #2a2a4a;
+      --text: #e0e0e0;
+      --muted: #8a8aa0;
+      --accent: #00d4aa;
+      --ok: #00d4aa;
+      --ko: #ff5570;
+      --warn: #ffaa00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 20px;
+      line-height: 1.5;
+    }
+    h1 { color: var(--accent); margin: 0 0 8px 0; font-size: 28px; }
+    .subtitle { color: var(--muted); margin-bottom: 16px; text-align: center; }
+    .badge-local {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(0, 212, 170, 0.1);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 6px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      margin-bottom: 32px;
+    }
+    .container {
+      width: 100%; max-width: 720px;
+      background: var(--panel);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 32px;
+    }
+    .step { margin-bottom: 24px; }
+    .step h3 { margin: 0 0 8px 0; color: var(--accent); font-size: 16px; }
+    .step p { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; }
+    textarea {
+      width: 100%; min-height: 100px;
+      background: #000; color: #fff;
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; font-family: "JetBrains Mono", "Courier New", monospace;
+      font-size: 12px; resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    button.primary {
+      background: var(--accent); color: var(--bg);
+      border: none; border-radius: 6px;
+      padding: 12px 24px; font-weight: 600;
+      cursor: pointer; font-size: 15px;
+      width: 100%;
+    }
+    button.primary:hover { background: #00b894; }
+    button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    #result {
+      margin-top: 24px; padding: 20px;
+      border-radius: 8px; display: none;
+    }
+    #result.ok { background: rgba(0, 212, 170, 0.1); border: 1px solid var(--ok); }
+    #result.ko { background: rgba(255, 85, 112, 0.1); border: 1px solid var(--ko); }
+    #result h2 { margin: 0 0 8px 0; }
+    #result.ok h2 { color: var(--ok); }
+    #result.ko h2 { color: var(--ko); }
+    #result ul { margin: 12px 0 0 0; padding-left: 20px; }
+    .pubkey-section {
+      margin-top: 24px; padding: 12px 16px;
+      background: #000; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 12px; color: var(--muted);
+    }
+    .pubkey-section code {
+      color: var(--accent); word-break: break-all; user-select: all;
+    }
+    code {
+      background: #000; padding: 2px 6px;
+      border-radius: 3px; font-size: 12px;
+      color: var(--accent);
+    }
+    details {
+      margin-top: 24px; padding: 12px 16px;
+      background: #000; border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+    details summary:hover { color: var(--text); }
+    details pre {
+      margin-top: 12px;
+      font-size: 11px; color: var(--muted);
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .footer {
+      margin-top: 32px; color: var(--muted);
+      font-size: 12px; text-align: center;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>🔐 Vérification de signature</h1>
+  <p class="subtitle">Graal Security — vérifiez l'authenticité d'un livrable</p>
+
+  <div class="badge-local">
+    🛡️ Vérification 100% locale — aucune donnée envoyée
+  </div>
+
+  <div class="container">
+    <div class="step">
+      <h3>Comment ça marche ?</h3>
+      <p>
+        Chaque livrable Graal Security contient un fichier <code>MANIFEST.txt</code>.
+        Ce fichier liste les empreintes SHA-256 de chaque fichier du livrable et porte
+        une signature numérique <strong>Ed25519</strong> (RFC 8032).
+        Cette page vérifie la signature <strong>localement, dans votre navigateur</strong> —
+        aucune donnée n'est envoyée sur internet. Vous pouvez le constater en ouvrant
+        l'onglet "Réseau" des outils développeur (F12).
+      </p>
+    </div>
+
+    <div class="step">
+      <h3>Étape 1 — Coller les "Données signées"</h3>
+      <p>Ouvrez le <code>MANIFEST.txt</code>, copiez la ligne JSON après <em>"Données signées (JSON canonique)"</em> et collez-la ci-dessous :</p>
+      <textarea id="canonical" placeholder='{"files":{...},"generatedAt":"...",...}' spellcheck="false"></textarea>
+    </div>
+
+    <div class="step">
+      <h3>Étape 2 — Coller la signature</h3>
+      <p>Copiez la valeur après <em>"Signature (base64)"</em> et collez-la ci-dessous :</p>
+      <textarea id="signature" placeholder="base64..." spellcheck="false"></textarea>
+    </div>
+
+    <button class="primary" id="verify-btn">Vérifier la signature</button>
+
+    <div id="result"></div>
+
+    <div class="pubkey-section">
+      <strong>Clé publique Graal Security (embarquée dans cette page) :</strong><br>
+      <code id="pubkey-display"></code><br>
+      <span style="color: var(--muted);">Empreinte (SHA-256) : <code id="pubkey-fingerprint"></code></span>
+    </div>
+
+    <details>
+      <summary>Vérifier en ligne de commande (pour les techniciens)</summary>
+      <pre>
+# 1. Sauver les "Données signées" dans manifest.json
+# 2. Sauver la signature en binaire dans manifest.sig :
+echo "VOTRE_SIGNATURE_BASE64" | base64 -d > manifest.sig
+
+# 3. Sauver la clé publique au format raw dans pubkey.raw :
+echo "GRAAL_PUBKEY_BASE64" | base64 -d > pubkey.raw
+# Note : il faut convertir en SPKI pour openssl. Voir docs.
+
+# 4. Vérification avec OpenSSL (3.0+) :
+openssl pkeyutl -verify -pubin -inkey pubkey.pem \
+  -rawin -in manifest.json -sigfile manifest.sig
+</pre>
+    </details>
+  </div>
+
+  <p class="footer">
+    Outil de vérification autonome — Graal Security
+  </p>
+
+  <script>
+    'use strict';
+
+    // ─────────────────────────────────────────────────────────────
+    // CLÉ PUBLIQUE Ed25519 DU SERVEUR GRAAL SECURITY
+    // ─────────────────────────────────────────────────────────────
+    // Format : 32 octets bruts encodés en base64url (43 caractères).
+    // Cette clé est la moitié publique de la paire générée sur le
+    // serveur Graal. La clé privée ne quitte jamais le serveur.
+    //
+    // ⚠ POUR DÉPLOYER : remplacer la valeur ci-dessous par la sortie
+    //   du script `node scripts/export-pubkey.js` exécuté sur le serveur.
+    //
+    const GRAAL_PUBKEY_B64URL = '__REMPLACER_AVEC_VOTRE_CLE_PUBLIQUE__';
+
+    // ─────────────────────────────────────────────────────────────
+    // UTILITAIRES
+    // ─────────────────────────────────────────────────────────────
+
+    /** base64url → Uint8Array */
+    function b64urlToBytes(b64url) {
+      const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+      const bin = atob(padded);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    /** base64 standard → Uint8Array */
+    function b64ToBytes(b64) {
+      const clean = b64.replace(/\s/g, '');
+      const bin = atob(clean);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    /** Uint8Array → string hex */
+    function bytesToHex(bytes) {
+      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    /** Calcule SHA-256(input) → string hex (24 chars pour fingerprint) */
+    async function shortFingerprint(bytes) {
+      const hash = await crypto.subtle.digest('SHA-256', bytes);
+      return 'SHA256:' + bytesToHex(new Uint8Array(hash)).slice(0, 24);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // INITIALISATION
+    // ─────────────────────────────────────────────────────────────
+
+    let publicKeyHandle = null; // CryptoKey une fois importée
+
+    (async function init() {
+      // Affiche la clé publique
+      document.getElementById('pubkey-display').textContent = GRAAL_PUBKEY_B64URL;
+
+      // Calcule + affiche le fingerprint
+      try {
+        const pubBytes = b64urlToBytes(GRAAL_PUBKEY_B64URL);
+        const fp = await shortFingerprint(pubBytes);
+        document.getElementById('pubkey-fingerprint').textContent = fp;
+
+        // Importe la clé publique pour WebCrypto
+        publicKeyHandle = await crypto.subtle.importKey(
+          'raw',
+          pubBytes,
+          { name: 'Ed25519' },
+          true,
+          ['verify']
+        );
+      } catch (e) {
+        document.getElementById('pubkey-fingerprint').textContent = '⚠ Erreur de chargement : ' + e.message;
+      }
+    })();
+
+    // ─────────────────────────────────────────────────────────────
+    // VÉRIFICATION
+    // ─────────────────────────────────────────────────────────────
+
+    document.getElementById('verify-btn').addEventListener('click', async () => {
+      const canonical = document.getElementById('canonical').value.trim();
+      const signature = document.getElementById('signature').value.trim();
+      const result = document.getElementById('result');
+      const btn = document.getElementById('verify-btn');
+
+      result.style.display = 'none';
+      result.className = '';
+
+      if (!canonical || !signature) {
+        result.className = 'ko';
+        result.innerHTML = '<h2>⚠ Champs manquants</h2><p>Renseignez les deux champs avant de vérifier.</p>';
+        result.style.display = 'block';
+        return;
+      }
+
+      if (!publicKeyHandle) {
+        result.className = 'ko';
+        result.innerHTML = '<h2>⚠ Clé publique non chargée</h2><p>Cette page n\'a pas pu charger la clé publique. Rechargez la page.</p>';
+        result.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Vérification...';
+
+      try {
+        const sigBytes = b64ToBytes(signature);
+        const msgBytes = new TextEncoder().encode(canonical);
+
+        const valid = await crypto.subtle.verify(
+          { name: 'Ed25519' },
+          publicKeyHandle,
+          sigBytes,
+          msgBytes
+        );
+
+        if (valid) {
+          let info = '';
+          try {
+            const m = JSON.parse(canonical);
+            info = `
+              <ul>
+                <li>Mission : <code>${escapeHtml(m.missionId || '?')}</code></li>
+                <li>Cible : <code>${escapeHtml(m.target || '?')}</code></li>
+                <li>Date : <code>${escapeHtml(m.generatedAt || '?')}</code></li>
+                <li>Version Graal : <code>${escapeHtml(m.graalVersion || '?')}</code></li>
+                <li>Fichiers : <code>${Object.keys(m.files || {}).length}</code></li>
+              </ul>
+            `;
+          } catch (_) { /* pas grave */ }
+
+          result.className = 'ok';
+          result.innerHTML = `
+            <h2>✓ Signature valide</h2>
+            <p>Le manifest est <strong>authentique</strong>. Il a bien été émis par Graal Security et n'a pas été modifié depuis sa génération.</p>
+            ${info}
+          `;
+        } else {
+          result.className = 'ko';
+          result.innerHTML = `
+            <h2>✗ Signature INVALIDE</h2>
+            <p><strong>Le manifest a été modifié ou la signature ne correspond pas.</strong></p>
+            <p style="margin-top: 8px;">Causes possibles :</p>
+            <ul>
+              <li>Le bloc "Données signées" a été altéré (ne serait-ce qu'un espace, un retour à la ligne)</li>
+              <li>La signature a été tronquée ou modifiée au copier-coller</li>
+              <li>Le fichier ne provient pas de Graal Security</li>
+              <li>La clé publique de cette page est obsolète (le serveur a généré de nouvelles clés)</li>
+            </ul>
+          `;
+        }
+      } catch (e) {
+        result.className = 'ko';
+        result.innerHTML = '<h2>Erreur</h2><p>' + escapeHtml(e.message || String(e)) + '</p>';
+      }
+
+      result.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Vérifier la signature';
+    });
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+  </script>
+</body>
+</html>
